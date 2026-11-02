@@ -32,9 +32,9 @@
 
   /* ---------- Screens ---------- */
   .screen { position:fixed; inset:0; display:flex; flex-direction:column;
-    align-items:center; justify-content:center; text-align:center; z-index:10;
+    align-items:center; justify-content:safe center; text-align:center; z-index:10;
     background:radial-gradient(ellipse at center, rgba(16,26,38,.88), rgba(5,8,12,.96));
-    color:#fff; padding:20px; overflow-y:auto; }
+    color:#fff; padding:20px; overflow-y:auto; touch-action:pan-y; }
 
   /* ---------- Garage (car customisation) ---------- */
   #garage, #copGarage { margin-top:16px; background:rgba(255,255,255,.07);
@@ -723,7 +723,7 @@ function bindBtn(id, prop) {
 bindBtn('btnLeft', 'left'); bindBtn('btnRight', 'right');
 bindBtn('btnGas', 'gas'); bindBtn('btnBrake', 'brake'); bindBtn('btnDrift', 'drift');
 window.addEventListener('touchstart', function () { document.body.classList.add('touch'); }, { passive: true });
-document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+document.addEventListener('touchmove', function (e) { if (e.target.closest && e.target.closest('.screen')) return; e.preventDefault(); }, { passive: false });
 
 function readInput() {
   var throttle = 0, steer = 0, drift = false;
