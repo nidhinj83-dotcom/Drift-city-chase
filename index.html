@@ -1,0 +1,1736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Drift City Chase — designed by Nohan</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; background:#101418;
+    font-family: Arial, Helvetica, sans-serif; -webkit-user-select:none; user-select:none;
+    touch-action:none; overscroll-behavior:none; }
+  #game { position:fixed; inset:0; display:block; }
+
+  /* ---------- HUD ---------- */
+  #hud { position:fixed; top:0; left:0; right:0; padding:10px 12px;
+    display:none; pointer-events:none; color:#fff; z-index:5;
+    text-shadow:0 2px 4px rgba(0,0,0,.7); }
+  #stars { font-size:34px; letter-spacing:3px; color:#ffd83d;
+    text-shadow:0 0 10px rgba(255,180,0,.8), 0 2px 4px rgba(0,0,0,.8); line-height:1; }
+  #stars .off { color:rgba(255,255,255,.22); text-shadow:none; }
+  #stats { margin-top:4px; font-size:16px; font-weight:bold; display:flex; gap:16px; flex-wrap:wrap; }
+  #stats span b { color:#8fd3ff; }
+  #bustWrap { margin-top:8px; width:min(320px,60vw); }
+  #bustLabel { font-size:13px; font-weight:bold; color:#ff6b6b; letter-spacing:2px;
+    opacity:0; transition:opacity .15s; }
+  #bustBarOuter { height:14px; border:2px solid rgba(255,255,255,.65); border-radius:8px;
+    background:rgba(0,0,0,.45); overflow:hidden; margin-top:2px; }
+  #bustBar { height:100%; width:0%; background:linear-gradient(90deg,#ffb03a,#ff4040); }
+  #soundBtn { position:fixed; top:10px; right:12px; z-index:6; pointer-events:auto;
+    background:rgba(0,0,0,.45); color:#fff; border:2px solid rgba(255,255,255,.5);
+    border-radius:10px; font-size:20px; padding:4px 10px; cursor:pointer; display:none; }
+
+  /* ---------- Screens ---------- */
+  .screen { position:fixed; inset:0; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; z-index:10;
+    background:radial-gradient(ellipse at center, rgba(16,26,38,.88), rgba(5,8,12,.96));
+    color:#fff; padding:20px; overflow-y:auto; }
+
+  /* ---------- Garage (car customisation) ---------- */
+  #garage, #copGarage { margin-top:16px; background:rgba(255,255,255,.07);
+    border:2px solid rgba(255,255,255,.18); border-radius:14px; padding:12px 16px; }
+  #garage h3, #copGarage h3 { font-size:17px; letter-spacing:1px; color:#ffd83d; margin-bottom:8px; }
+  .tabbtn { font-size:14.5px; font-weight:bold; color:#dfe9f2; background:rgba(255,255,255,.10);
+    border:2px solid rgba(255,255,255,.25); border-radius:10px; padding:8px 16px; cursor:pointer; }
+  .tabbtn.sel { background:linear-gradient(180deg,#ffe066,#ffb03a); color:#10222e; border-color:#ffd83d; }
+  .vehbtn { font-size:14.5px; font-weight:bold; color:#10222e; background:linear-gradient(180deg,#dff2ff,#8fc3ee);
+    border:3px solid transparent; border-radius:10px; padding:8px 13px; cursor:pointer; }
+  .vehbtn.sel { border-color:#ffd83d; box-shadow:0 0 10px rgba(255,216,61,.8); }
+  .vehbtn:disabled { background:#5a636e; color:#cfd6dd; cursor:default; }
+  .grow { display:flex; align-items:center; gap:6px; margin:7px 0; justify-content:flex-start; }
+  .grow .glabel { width:104px; text-align:right; font-size:13.5px; font-weight:bold;
+    color:#dfe9f2; margin-right:4px; }
+  .sw { width:27px; height:27px; border-radius:50%; border:3px solid rgba(255,255,255,.25);
+    cursor:pointer; flex:none; padding:0; }
+  .sw.sel { border-color:#ffd83d; box-shadow:0 0 9px rgba(255,216,61,.9); transform:scale(1.12); }
+
+  /* ---------- Upgrades + zone banner ---------- */
+  .urow { display:flex; align-items:center; gap:8px; margin:8px 0; justify-content:flex-start; }
+  .urow .ulabel { width:150px; text-align:right; font-size:13.5px; font-weight:bold; color:#dfe9f2; }
+  .urow .pips { color:#ffd83d; font-size:15px; letter-spacing:2px; width:64px; text-align:left; }
+  .buybtn { font-size:13.5px; font-weight:bold; color:#10222e; background:linear-gradient(180deg,#ffe066,#ffb03a);
+    border:none; border-radius:9px; padding:7px 13px; cursor:pointer; box-shadow:0 3px 0 #b3540a; }
+  .buybtn:disabled { background:#5a636e; color:#cfd6dd; box-shadow:none; cursor:default; }
+  .buybtn:active:not(:disabled) { transform:translateY(2px); box-shadow:0 1px 0 #b3540a; }
+  #zoneBanner { position:fixed; top:20%; left:0; right:0; z-index:8; text-align:center;
+    font-size:clamp(24px,6.5vw,44px); font-weight:bold; letter-spacing:3px; color:#ffd83d;
+    text-shadow:0 0 22px rgba(255,170,0,.7), 0 4px 12px rgba(0,0,0,.9);
+    opacity:0; transform:scale(.92); transition:opacity .3s, transform .3s; pointer-events:none; }
+  #zoneBanner.show { opacity:1; transform:scale(1); }
+  .screen h1 { font-size:clamp(34px,8vw,64px); letter-spacing:2px; color:#ffd83d;
+    text-shadow:0 0 24px rgba(255,170,0,.55), 0 4px 0 #b3540a, 0 8px 18px rgba(0,0,0,.8); }
+  .screen h2 { font-size:clamp(26px,6vw,44px); color:#ff5252; letter-spacing:3px;
+    text-shadow:0 0 18px rgba(255,40,40,.6), 0 4px 10px rgba(0,0,0,.8); }
+  .byline { margin-top:6px; font-size:clamp(15px,3.5vw,20px); color:#8fd3ff; font-weight:bold; }
+  .howto { margin:20px 0 6px; font-size:clamp(14px,3.4vw,18px); line-height:1.65; color:#dfe9f2;
+    max-width:560px; }
+  .howto b { color:#ffd83d; }
+  .bigbtn { margin-top:22px; font-size:clamp(19px,5vw,26px); font-weight:bold; letter-spacing:1px;
+    color:#10222e; background:linear-gradient(180deg,#ffe066,#ffb03a); border:none;
+    border-radius:14px; padding:14px 42px; cursor:pointer;
+    box-shadow:0 6px 0 #b3540a, 0 10px 24px rgba(0,0,0,.6); }
+  .bigbtn:active { transform:translateY(4px); box-shadow:0 2px 0 #b3540a; }
+  .modeRow { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; }
+  .bigbtn.ghostbtn { background:linear-gradient(180deg,#dff2ff,#8fc3ee);
+    box-shadow:0 6px 0 #3a6ea8, 0 10px 24px rgba(0,0,0,.6); }
+  .bigbtn.ghostbtn:active { box-shadow:0 2px 0 #3a6ea8; }
+  .bigbtn.policebtn { background:linear-gradient(180deg,#ffd7d7,#ff9d9d);
+    box-shadow:0 6px 0 #a83a3a, 0 10px 24px rgba(0,0,0,.6); }
+  .bigbtn.policebtn:active { box-shadow:0 2px 0 #a83a3a; }
+  #ghostNote, #policeNote { margin-top:15px; font-size:15px; line-height:1.55; color:#bfe0ff;
+    max-width:540px; transition:transform .15s, color .15s; }
+  #ghostNote b, #policeNote b { color:#ffd83d; }
+  #ghostNote.pulse, #policeNote.pulse { transform:scale(1.1); color:#ffd83d; }
+  .results { margin-top:14px; font-size:clamp(16px,4vw,21px); line-height:1.7; color:#dfe9f2; }
+  .results b { color:#ffd83d; }
+  .starsBig { font-size:clamp(30px,7vw,46px); color:#ffd83d; letter-spacing:4px; margin-top:8px;
+    text-shadow:0 0 14px rgba(255,180,0,.8); }
+  .starsBig .off { color:rgba(255,255,255,.22); text-shadow:none; }
+  #gameOverScreen { display:none; }
+
+  /* ---------- Touch controls ---------- */
+  #touch { position:fixed; inset:auto 0 0 0; z-index:7; display:none;
+    justify-content:space-between; align-items:flex-end; padding:0 10px 14px;
+    pointer-events:none; }
+  .tcluster { display:flex; gap:12px; align-items:flex-end; pointer-events:none; }
+  .tbtn { pointer-events:auto; width:68px; height:68px; border-radius:50%;
+    background:rgba(255,255,255,.14); border:2px solid rgba(255,255,255,.55);
+    color:#fff; font-size:24px; display:flex; align-items:center; justify-content:center;
+    text-shadow:0 1px 3px rgba(0,0,0,.8); -webkit-tap-highlight-color:transparent; }
+  .tbtn.small { width:58px; height:58px; font-size:12px; font-weight:bold; letter-spacing:.5px; }
+  .tbtn.on { background:rgba(255,216,61,.45); }
+  body.touch #touch { display:flex; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="stars"></div>
+  <div id="stats">
+    <span>⏱ <b id="stTime">0:00</b></span>
+    <span>🏁 <b id="stDist">0 m</b></span>
+    <span>🚗 <b id="stSpeed">0</b> km/h</span>
+    <span>⭐ Score <b id="stScore">0</b></span>
+    <span id="stDay">☀️ Day</span>
+    <span>🗺 <b id="stZone">Downtown</b></span>
+    <span id="stGhost" style="display:none"></span>
+    <span id="stLevel"></span>
+  </div>
+  <div id="bustWrap">
+    <div id="bustLabel">⚠ BUSTED METER ⚠</div>
+    <div id="bustBarOuter"><div id="bustBar"></div></div>
+  </div>
+</div>
+<button id="soundBtn" title="Sound on/off">🔊</button>
+<div id="zoneBanner"></div>
+
+<div id="touch">
+  <div class="tcluster">
+    <div class="tbtn" id="btnLeft">◀</div>
+    <div class="tbtn" id="btnRight">▶</div>
+  </div>
+  <div class="tcluster">
+    <div class="tbtn small" id="btnDrift">DRIFT</div>
+    <div class="tbtn" id="btnBrake">▼</div>
+    <div class="tbtn" id="btnGas">▲</div>
+  </div>
+</div>
+
+<div class="screen" id="startScreen">
+  <h1>🏙️ DRIFT CITY CHASE 🚓</h1>
+  <div class="byline">— designed by Nohan —</div>
+  <div class="howto">
+    The police are after you! <b>Drift</b> through the endless city and escape as long as you can.<br>
+    The longer you survive, the more <b>⭐ wanted stars</b> you earn — and the more police come!<br>
+    If the police pin your car and the <b>BUSTED meter</b> fills up… game over!<br><br>
+    ☀️🌙 Day turns into night — your headlights switch on by themselves!<br>
+    🗺️ Survive longer to escape through new zones… all the way to <b>MARS!</b> 👽<br>
+    🎯 <b>Classic Chase:</b> beat the level targets — survive to the final Mars target to <b>🔄 REBIRTH</b> and unlock new vehicles!<br>
+    👻 <b>Ghost Mode:</b> race the ghost of your best escape. &nbsp;🚓 <b>Police Mode:</b> become the cop and catch it!<br>
+    ⌨️ <b>Drive:</b> Arrow keys or WASD &nbsp;•&nbsp; <b>Drift:</b> SPACE or SHIFT<br>
+    📱 On a phone or tablet, use the on-screen buttons.
+  </div>
+  <div class="modeRow" style="margin-top:16px;">
+    <button class="tabbtn sel" id="tabEsc">🚗 ESCAPER GARAGE</button>
+    <button class="tabbtn" id="tabCop">🚓 COP GARAGE</button>
+  </div>
+  <div id="garage">
+    <div id="progLine" style="font-size:14.5px;line-height:1.6;color:#dfe9f2;margin-bottom:8px;"></div>
+    <h3>🚙 YOUR VEHICLE</h3>
+    <div id="vehRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;"></div>
+    <h3>🎨 PAINT YOUR VEHICLE!</h3>
+    <div id="garageRows"></div>
+    <h3 style="margin-top:14px;">⬆️ UPGRADES &nbsp;·&nbsp; 💰 <span id="credBal">0</span> credits</h3>
+    <div id="upgRows"></div>
+    <div style="font-size:12.5px;color:#9fb4c4;">Upgrades belong to THIS vehicle — every new vehicle starts at level zero!<br>Earn credits by escaping — longer chases and more stars pay more!</div>
+  </div>
+  <div id="copGarage" style="display:none;">
+    <h3>🚓 COP GARAGE — your police machine!</h3>
+    <div id="copGarageRows"></div>
+    <h3 style="margin-top:14px;">⬆️ COP UPGRADES &nbsp;·&nbsp; 💰 <span id="credBal2">0</span> credits</h3>
+    <div id="copUpgRows"></div>
+    <div style="font-size:12.5px;color:#9fb4c4;">Same credit bank, different machine! On Mars your cop vehicle becomes a SPACESHIP 🛸</div>
+  </div>
+  <div class="modeRow">
+    <button class="bigbtn" id="startBtn">▶ CLASSIC CHASE</button>
+    <button class="bigbtn ghostbtn" id="ghostBtn">👻 GHOST MODE</button>
+    <button class="bigbtn policebtn" id="policeBtn">🚓 POLICE MODE</button>
+  </div>
+  <div id="ghostNote"></div>
+  <div id="policeNote"></div>
+</div>
+
+<div class="screen" id="gameOverScreen">
+  <h2 id="overTitle">🚓 BUSTED! 🚓</h2>
+  <div class="starsBig" id="finalStars"></div>
+  <div class="results" id="finalStats"></div>
+  <button class="bigbtn" id="restartBtn">↻ DRIVE AGAIN</button>
+</div>
+
+<script>
+'use strict';
+/* =====================================================
+   DRIFT CITY CHASE — designed by Nohan
+   Endless top-down city. Drift, escape, earn stars.
+   ===================================================== */
+
+// ---------- Canvas ----------
+var canvas = document.getElementById('game');
+var ctx = canvas.getContext('2d');
+var W = 0, H = 0;
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ---------- DOM ----------
+var hudEl = document.getElementById('hud');
+var starsEl = document.getElementById('stars');
+var stTime = document.getElementById('stTime');
+var stDist = document.getElementById('stDist');
+var stSpeed = document.getElementById('stSpeed');
+var stScore = document.getElementById('stScore');
+var bustBar = document.getElementById('bustBar');
+var bustLabel = document.getElementById('bustLabel');
+var startScreen = document.getElementById('startScreen');
+var gameOverScreen = document.getElementById('gameOverScreen');
+var finalStars = document.getElementById('finalStars');
+var finalStats = document.getElementById('finalStats');
+var soundBtn = document.getElementById('soundBtn');
+var stDay = document.getElementById('stDay');
+var stZone = document.getElementById('stZone');
+var zoneBanner = document.getElementById('zoneBanner');
+var stGhost = document.getElementById('stGhost');
+var stLevel = document.getElementById('stLevel');
+var overTitle = document.getElementById('overTitle');
+
+// ---------- Car customisation (Nohan's garage) ----------
+var cust = { body: '#ffb03a', wheels: '#14181d', trimF: '#10222e', trimR: '#10222e', lights: '#ffeeb0' };
+try {
+  var savedCust = JSON.parse(localStorage.getItem('driftCityChaseCar') || 'null');
+  if (savedCust) { for (var ck in cust) { if (savedCust[ck]) cust[ck] = savedCust[ck]; } }
+} catch (err) {}
+function saveCust() {
+  try { localStorage.setItem('driftCityChaseCar', JSON.stringify(cust)); } catch (err) {}
+}
+var GARAGE_PARTS = [
+  { key: 'body',   label: '🚗 Body',       colors: ['#ffb03a', '#e8433f', '#3f8cff', '#37c978', '#b06ce8', '#ff7ac2', '#f2f2f2', '#23272e'] },
+  { key: 'wheels', label: '🛞 Wheels',     colors: ['#14181d', '#5a636e', '#c0c6cc', '#8a5a2b', '#ffd83d', '#e8433f'] },
+  { key: 'trimF',  label: '↗ Front trim',  colors: ['#10222e', '#f2f2f2', '#ffd83d', '#e8433f', '#3f8cff', '#37c978'] },
+  { key: 'trimR',  label: '↙ Rear trim',   colors: ['#10222e', '#f2f2f2', '#ffd83d', '#e8433f', '#3f8cff', '#37c978'] },
+  { key: 'lights', label: '💡 Headlights', colors: ['#ffeeb0', '#ffffff', '#9fd8ff', '#ffb0e0', '#b6ff9f', '#ffd83d'] }
+];
+(function buildGarage() {
+  var wrap = document.getElementById('garageRows');
+  GARAGE_PARTS.forEach(function (part) {
+    var row = document.createElement('div');
+    row.className = 'grow';
+    var lab = document.createElement('span');
+    lab.className = 'glabel'; lab.textContent = part.label;
+    row.appendChild(lab);
+    part.colors.forEach(function (col) {
+      var b = document.createElement('button');
+      b.className = 'sw' + (cust[part.key] === col ? ' sel' : '');
+      b.style.background = col;
+      b.setAttribute('aria-label', part.label + ' ' + col);
+      b.addEventListener('click', function () {
+        cust[part.key] = col;
+        saveCust();
+        var sib = row.querySelectorAll('.sw');
+        for (var i = 0; i < sib.length; i++) sib[i].classList.remove('sel');
+        b.classList.add('sel');
+        beep(660, 0.06, 0, 0.04);
+      });
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+  });
+})();
+
+// ---------- Day / night cycle ----------
+var CYCLE_LEN = 150; // seconds for a full day+night
+var cycleT = 20;     // start in the morning
+function smooth01(t) { return t * t * (3 - 2 * t); }
+function darknessAt(t) {
+  var ph = (t % CYCLE_LEN) / CYCLE_LEN;
+  if (ph < 0.36) return 0;                          // day
+  if (ph < 0.48) return smooth01((ph - 0.36) / 0.12); // dusk
+  if (ph < 0.84) return 1;                          // night
+  if (ph < 0.96) return 1 - smooth01((ph - 0.84) / 0.12); // dawn
+  return 0;
+}
+function hexToRgba(hex, a) {
+  var n = parseInt(hex.slice(1), 16);
+  return 'rgba(' + ((n >> 16) & 255) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+}
+
+// ---------- Zones (areas unlock as you survive longer) ----------
+var ZONES = [
+  { name: 'DOWNTOWN',       label: 'Downtown',       ground: '#2e3236', block: '#454a4f',
+    line: 'rgba(255,220,90,.5)',  buildings: ['#3d4b63', '#54456b', '#63503d', '#3f6355', '#6b4550', '#46586e', '#5d5a3a', '#4a3f63'] },
+  { name: 'DESERT HIGHWAY', label: 'Desert Highway', ground: '#8a6f4d', block: '#a5875f',
+    line: 'rgba(255,244,200,.55)', buildings: ['#b59a6b', '#a3805a', '#c2ab7d', '#977950', '#b08d5f', '#8f7350', '#c7b083', '#a68a63'] },
+  { name: 'SNOWY PORT',     label: 'Snowy Port',     ground: '#5f7185', block: '#aebfce',
+    line: 'rgba(230,244,255,.6)', buildings: ['#7e93a8', '#93a9bd', '#6d839b', '#a7bccf', '#8598ab', '#778fa6', '#9db2c6', '#7086a0'] },
+  { name: 'MARS',           label: '🚀 MARS',        ground: '#9c4526', block: '#7c351d',
+    line: 'rgba(255,180,120,.35)', buildings: ['#8a3d20', '#a04e28', '#74331c', '#b05a30', '#83391f', '#9c4a26', '#6e2f1a', '#ab532c'] }
+];
+var ZONE_MARGINS = [58, 66, 50, 58]; // building inset per zone (street width feel)
+var curZone = 0, curMargin = 58, bannerTO = null;
+function zoneFor(t) { return t < 45 ? 0 : (t < 100 ? 1 : (t < 165 ? 2 : 3)); }
+function applyZone(z) {
+  curZone = z;
+  curMargin = ZONE_MARGINS[z];
+  stZone.textContent = ZONES[z].label;
+  if (z === 3 && typeof cops !== 'undefined') {
+    for (var i = 0; i < cops.length; i++) cops[i].isShip = true; // Mars: UFOs take over!
+  }
+  if (typeof gameMode !== 'undefined' && gameMode === 'police' && typeof player !== 'undefined' && player) {
+    player.isShip = (z === 3);  // Police Mode: YOUR cop car becomes a spaceship on Mars!
+    player.glide = (z === 3);
+  }
+}
+function showBanner(txt) {
+  zoneBanner.textContent = txt;
+  zoneBanner.classList.add('show');
+  if (bannerTO) clearTimeout(bannerTO);
+  bannerTO = setTimeout(function () { zoneBanner.classList.remove('show'); }, 2800);
+}
+
+// ---------- Credits, vehicles, rebirth + PER-VEHICLE upgrades ----------
+// Credits are ONE shared bank. Upgrades belong to each vehicle separately:
+// every new vehicle starts with ZERO upgrades and must be re-upgraded!
+var credits = 0;
+var rebirths = 0;      // 🔄 prestige count — also makes enemies harder!
+var vehicle = 'car';   // selected vehicle id
+var VEHICLES = [
+  { id: 'car',   name: '🚗 Car',           unlock: 0, speedMul: 1.00, accelMul: 1.00, gripMul: 1.00, driftGrip: 1.7, armourMul: 1.00 },
+  { id: 'bike',  name: '🏍️ Bike',          unlock: 1, speedMul: 1.03, accelMul: 1.30, gripMul: 1.00, driftGrip: 2.3, armourMul: 1.25 },
+  { id: 'snow',  name: '🛷 Snowmobile',    unlock: 2, speedMul: 1.06, accelMul: 1.10, gripMul: 1.25, driftGrip: 2.0, armourMul: 1.00 },
+  { id: 'hover', name: '🛸 Hover Speeder', unlock: 3, speedMul: 1.13, accelMul: 1.15, gripMul: 0.78, driftGrip: 1.0, armourMul: 0.95 }
+];
+function vehDef() {
+  for (var i = 0; i < VEHICLES.length; i++) if (VEHICLES[i].id === vehicle) return VEHICLES[i];
+  return VEHICLES[0];
+}
+function blankUpg() { return { engine: 0, grip: 0, armour: 0 }; }
+var upgByVehicle = { car: blankUpg(), bike: blankUpg(), snow: blankUpg(), hover: blankUpg() };
+try {
+  credits = parseInt(localStorage.getItem('driftCityChaseCredits') || '0', 10) || 0;
+  rebirths = parseInt(localStorage.getItem('driftCityChaseRebirths') || '0', 10) || 0;
+  var savedVeh = localStorage.getItem('driftCityChaseVehicle');
+  if (savedVeh && upgByVehicle.hasOwnProperty(savedVeh)) vehicle = savedVeh;
+  var savedBy = JSON.parse(localStorage.getItem('driftCityChaseUpgradesByVehicle') || 'null');
+  if (savedBy) {
+    for (var vid in upgByVehicle) {
+      if (savedBy[vid]) { for (var uk2 in upgByVehicle[vid]) {
+        if (typeof savedBy[vid][uk2] === 'number') upgByVehicle[vid][uk2] = Math.max(0, Math.min(3, savedBy[vid][uk2]));
+      } }
+    }
+  } else {
+    // migrate the old single-car upgrade save into the Car's slot
+    var legacyUpg = JSON.parse(localStorage.getItem('driftCityChaseUpgrades') || 'null');
+    if (legacyUpg) { for (var uk3 in upgByVehicle.car) {
+      if (typeof legacyUpg[uk3] === 'number') upgByVehicle.car[uk3] = Math.max(0, Math.min(3, legacyUpg[uk3]));
+    } }
+  }
+} catch (err) {}
+if (rebirths < vehDef().unlock) vehicle = 'car'; // locked vehicle can never stay selected
+var upg = upgByVehicle[vehicle]; // upgrades of the CURRENT vehicle
+function saveWallet() {
+  try {
+    localStorage.setItem('driftCityChaseCredits', String(credits));
+    localStorage.setItem('driftCityChaseUpgradesByVehicle', JSON.stringify(upgByVehicle));
+    localStorage.setItem('driftCityChaseUpgrades', JSON.stringify(upgByVehicle.car)); // legacy mirror
+  } catch (err) {}
+}
+function saveRebirth() {
+  try {
+    localStorage.setItem('driftCityChaseRebirths', String(rebirths));
+    localStorage.setItem('driftCityChaseVehicle', vehicle);
+  } catch (err) {}
+}
+// ---------- Rebirth level targets (Classic Chase progression) ----------
+var FINAL_LEVEL = 10;                 // 10 targets per cycle
+var level = 1, rebirthedThisRun = false;
+function levelTarget(l) { return 30 * l + 15 * rebirths; } // cycle 1: 30,60,…,300 — each rebirth adds +15s
+function buildVehRow() {
+  var wrap = document.getElementById('vehRow');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  VEHICLES.forEach(function (v) {
+    var b = document.createElement('button');
+    var locked = rebirths < v.unlock;
+    b.className = 'vehbtn' + (vehicle === v.id ? ' sel' : '');
+    b.textContent = locked ? '🔒 ' + v.name + ' (Rebirth ' + v.unlock + ')' : v.name;
+    b.disabled = locked;
+    b.addEventListener('click', function () {
+      vehicle = v.id;
+      upg = upgByVehicle[vehicle]; // switch to THIS vehicle's own upgrades
+      saveRebirth();
+      buildVehRow(); buildUpg(); refreshProgUI();
+      beep(660, 0.06, 0, 0.04);
+    });
+    wrap.appendChild(b);
+  });
+}
+function refreshProgUI() {
+  var el = document.getElementById('progLine');
+  if (!el) return;
+  el.innerHTML = '🔄 Rebirths: <b>' + rebirths + '</b> &nbsp;·&nbsp; 🎯 Level 1 target: survive <b>' +
+    fmtTime(levelTarget(1)) + '</b> &nbsp;·&nbsp; Final Mars target: <b>' + fmtTime(levelTarget(FINAL_LEVEL)) + '</b>' +
+    '<br>⚠️ Every rebirth makes the police FASTER — you have to earn it again!';
+}
+var UPG_DEFS = [
+  { key: 'engine', label: '🚀 Engine', hint: 'top speed',            prices: [50, 100, 200] },
+  { key: 'grip',   label: '🛞 Grip',   hint: 'handling & drift',     prices: [50, 100, 200] },
+  { key: 'armour', label: '🛡️ Armour', hint: 'bust meter is slower', prices: [60, 120, 220] }
+];
+function effMaxSpeed() { return BASE_MAX * vehDef().speedMul * (1 + 0.07 * upg.engine); }
+function copPlayerMaxSpeed() { return BASE_MAX * (1 + 0.07 * copUpg.engine + 0.05 * copUpg.rockets); }
+function buildUpg() {
+  document.getElementById('credBal').textContent = credits;
+  var wrap = document.getElementById('upgRows');
+  wrap.innerHTML = '';
+  UPG_DEFS.forEach(function (def) {
+    var lvl = upg[def.key];
+    var row = document.createElement('div');
+    row.className = 'urow';
+    var lab = document.createElement('span');
+    lab.className = 'ulabel';
+    lab.textContent = def.label + ' · ' + def.hint;
+    var pips = document.createElement('span');
+    pips.className = 'pips';
+    pips.textContent = '●'.repeat(lvl) + '○'.repeat(3 - lvl);
+    var btn = document.createElement('button');
+    btn.className = 'buybtn';
+    if (lvl >= 3) { btn.textContent = 'MAX ⭐'; btn.disabled = true; }
+    else {
+      btn.textContent = 'BUY ' + def.prices[lvl] + ' 💰';
+      btn.disabled = credits < def.prices[lvl];
+    }
+    btn.addEventListener('click', function () {
+      var l2 = upg[def.key];
+      if (l2 >= 3 || credits < def.prices[l2]) return;
+      credits -= def.prices[l2];
+      upg[def.key] = l2 + 1;
+      saveWallet();
+      buildUpg();
+      beep(990, 0.1, 0, 0.06); beep(1320, 0.14, 0.09, 0.06);
+    });
+    row.appendChild(lab); row.appendChild(pips); row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+}
+buildUpg();
+buildVehRow();
+refreshProgUI();
+
+// ---------- COP GARAGE (Police Mode): its own colours + upgrades ----------
+var copCust = { body: '#2b6cb0', wheels: '#14181d', trimF: '#f2f2f2', trimR: '#f2f2f2', lights: '#ffeeb0' };
+var copUpg = { rockets: 0, catch: 0, engine: 0 };
+try {
+  var savedCopCust = JSON.parse(localStorage.getItem('driftCityChaseCopCar') || 'null');
+  if (savedCopCust) { for (var ck2 in copCust) { if (savedCopCust[ck2]) copCust[ck2] = savedCopCust[ck2]; } }
+  var savedCopUpg = JSON.parse(localStorage.getItem('driftCityChaseCopUpgrades') || 'null');
+  if (savedCopUpg) { for (var uk4 in copUpg) { if (typeof savedCopUpg[uk4] === 'number') copUpg[uk4] = Math.max(0, Math.min(3, savedCopUpg[uk4])); } }
+} catch (err) {}
+function saveCop() {
+  try {
+    localStorage.setItem('driftCityChaseCopCar', JSON.stringify(copCust));
+    localStorage.setItem('driftCityChaseCopUpgrades', JSON.stringify(copUpg));
+  } catch (err) {}
+}
+var COP_GARAGE_PARTS = [
+  { key: 'body',   label: '🚓 Body',       colors: ['#2b6cb0', '#f2f2f2', '#23272e', '#e8433f', '#37c978', '#ffd83d', '#b06ce8', '#3f8cff'] },
+  { key: 'wheels', label: '🛞 Wheels',     colors: ['#14181d', '#5a636e', '#c0c6cc', '#8a5a2b', '#ffd83d', '#e8433f'] },
+  { key: 'trimF',  label: '↗ Front trim',  colors: ['#f2f2f2', '#10222e', '#ffd83d', '#e8433f', '#3f8cff', '#37c978'] },
+  { key: 'trimR',  label: '↙ Rear trim',   colors: ['#f2f2f2', '#10222e', '#ffd83d', '#e8433f', '#3f8cff', '#37c978'] },
+  { key: 'lights', label: '💡 Headlights', colors: ['#ffeeb0', '#ffffff', '#9fd8ff', '#ffb0e0', '#b6ff9f', '#ffd83d'] }
+];
+(function buildCopGarage() {
+  var wrap = document.getElementById('copGarageRows');
+  COP_GARAGE_PARTS.forEach(function (part) {
+    var row = document.createElement('div');
+    row.className = 'grow';
+    var lab = document.createElement('span');
+    lab.className = 'glabel'; lab.textContent = part.label;
+    row.appendChild(lab);
+    part.colors.forEach(function (col) {
+      var b = document.createElement('button');
+      b.className = 'sw' + (copCust[part.key] === col ? ' sel' : '');
+      b.style.background = col;
+      b.setAttribute('aria-label', part.label + ' ' + col);
+      b.addEventListener('click', function () {
+        copCust[part.key] = col;
+        saveCop();
+        var sib = row.querySelectorAll('.sw');
+        for (var i = 0; i < sib.length; i++) sib[i].classList.remove('sel');
+        b.classList.add('sel');
+        beep(660, 0.06, 0, 0.04);
+      });
+      row.appendChild(b);
+    });
+    wrap.appendChild(row);
+  });
+})();
+var COP_UPG_DEFS = [
+  { key: 'rockets', label: '🚀 Rockets',    hint: 'boost & top speed',      prices: [50, 100, 200] },
+  { key: 'catch',   label: '🎯 Catch Tech', hint: 'catch meter fills faster', prices: [60, 120, 220] },
+  { key: 'engine',  label: '⚙️ Engine',     hint: 'top speed',              prices: [50, 100, 200] }
+];
+function buildCopUpg() {
+  var bal = document.getElementById('credBal2');
+  if (bal) bal.textContent = credits;
+  var wrap = document.getElementById('copUpgRows');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  COP_UPG_DEFS.forEach(function (def) {
+    var lvl = copUpg[def.key];
+    var row = document.createElement('div');
+    row.className = 'urow';
+    var lab = document.createElement('span');
+    lab.className = 'ulabel';
+    lab.textContent = def.label + ' · ' + def.hint;
+    var pips = document.createElement('span');
+    pips.className = 'pips';
+    pips.textContent = '●'.repeat(lvl) + '○'.repeat(3 - lvl);
+    var btn = document.createElement('button');
+    btn.className = 'buybtn';
+    if (lvl >= 3) { btn.textContent = 'MAX ⭐'; btn.disabled = true; }
+    else {
+      btn.textContent = 'BUY ' + def.prices[lvl] + ' 💰';
+      btn.disabled = credits < def.prices[lvl];
+    }
+    btn.addEventListener('click', function () {
+      var l2 = copUpg[def.key];
+      if (l2 >= 3 || credits < def.prices[l2]) return;
+      credits -= def.prices[l2];
+      copUpg[def.key] = l2 + 1;
+      saveWallet(); // shared bank
+      saveCop();
+      buildCopUpg(); buildUpg();
+      beep(990, 0.1, 0, 0.06); beep(1320, 0.14, 0.09, 0.06);
+    });
+    row.appendChild(lab); row.appendChild(pips); row.appendChild(btn);
+    wrap.appendChild(row);
+  });
+}
+buildCopUpg();
+
+// ---------- City layout ----------
+// Each tile holds one building, inset by MARGIN. The gaps between
+// buildings form an endless grid of streets.
+var TILE = 300;        // city block pitch (px)
+var MARGIN = 58;       // building inset -> street width = 2*MARGIN
+var CAR_R = 17;        // car collision radius
+
+// Deterministic pseudo-random from block coordinates (stable world)
+function hash2(x, y) {
+  var h = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return h - Math.floor(h);
+}
+var BUILDING_COLORS = ['#3d4b63', '#54456b', '#63503d', '#3f6355', '#6b4550', '#46586e', '#5d5a3a', '#4a3f63'];
+function buildingRect(bx, by) {
+  // slight per-building size variety, still inside the tile
+  var v = hash2(bx * 3 + 7, by * 5 + 1);
+  var inset = curMargin + Math.floor(v * 14);
+  return { x: bx * TILE + inset, y: by * TILE + inset,
+           w: TILE - inset * 2, h: TILE - inset * 2 };
+}
+function buildingAt(px, py) {
+  var bx = Math.floor(px / TILE), by = Math.floor(py / TILE);
+  return { bx: bx, by: by, rect: buildingRect(bx, by) };
+}
+function pointInBuilding(px, py) {
+  var b = buildingAt(px, py), r = b.rect;
+  return px > r.x && px < r.x + r.w && py > r.y && py < r.y + r.h;
+}
+// Push a circular car out of any building it overlaps. Returns true if it hit.
+function collideBuildings(car) {
+  var hit = false;
+  var bx = Math.floor(car.x / TILE), by = Math.floor(car.y / TILE);
+  for (var i = -1; i <= 1; i++) {
+    for (var j = -1; j <= 1; j++) {
+      var r = buildingRect(bx + i, by + j);
+      var nx = Math.max(r.x, Math.min(car.x, r.x + r.w));
+      var ny = Math.max(r.y, Math.min(car.y, r.y + r.h));
+      var dx = car.x - nx, dy = car.y - ny;
+      var d2 = dx * dx + dy * dy;
+      if (d2 < CAR_R * CAR_R) {
+        hit = true;
+        var d = Math.sqrt(d2);
+        if (d < 0.001) { // centre inside: push out along smallest exit
+          var left = car.x - r.x, right = r.x + r.w - car.x;
+          var top = car.y - r.y, bot = r.y + r.h - car.y;
+          var m = Math.min(left, right, top, bot);
+          if (m === left) car.x = r.x - CAR_R;
+          else if (m === right) car.x = r.x + r.w + CAR_R;
+          else if (m === top) car.y = r.y - CAR_R;
+          else car.y = r.y + r.h + CAR_R;
+        } else {
+          var push = (CAR_R - d) / d;
+          car.x += dx * push; car.y += dy * push;
+          // kill velocity into the wall
+          var ux = dx / d, uy = dy / d;
+          var vn = car.vx * ux + car.vy * uy;
+          if (vn < 0) { car.vx -= vn * ux; car.vy -= vn * uy; }
+        }
+      }
+    }
+  }
+  return hit;
+}
+
+// ---------- GHOST RECORD (shared by Ghost Mode + Police Mode) ----------
+// Every Classic/Ghost run records its path. The LONGEST escape ever
+// becomes "the ghost" — race it in Ghost Mode, hunt it in Police Mode!
+var GHOST_KEY = 'driftCityChaseGhost';
+var REC_DT = 0.15;        // seconds between recorded path points
+var MAX_PTS = 4000;       // cap (~10 min of path) so storage stays small
+var GHOST_BONUS = 50;     // credits for beating your ghost
+var gameMode = 'classic'; // 'classic' | 'ghost' | 'police'
+var ghostRec = null;      // { time, pts:[[x,y,angle],...] }
+var runPath = [], recTimer = 0;
+var ghostBeaten = false, ghostBonus = 0;
+var catchMeter = 0;                       // Police Mode
+var escaper = null, escPrev = null, escSpeed = 0; // Police Mode replay car
+function loadGhost() {
+  ghostRec = null;
+  try {
+    var g = JSON.parse(localStorage.getItem(GHOST_KEY) || 'null');
+    if (g && typeof g.time === 'number' && isFinite(g.time) && g.time > 0 && Array.isArray(g.pts) && g.pts.length > 1) {
+      var pts = [];
+      for (var i = 0; i < g.pts.length; i++) {
+        var p = g.pts[i];
+        if (Array.isArray(p) && isFinite(p[0]) && isFinite(p[1])) {
+          pts.push([+p[0], +p[1], isFinite(p[2]) ? +p[2] : 0]);
+        }
+      }
+      if (pts.length > 1) ghostRec = { time: g.time, pts: pts };
+    }
+  } catch (err) { ghostRec = null; }
+}
+loadGhost();
+function lerpAngle(a, b, t) {
+  var d = b - a;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return a + d * t;
+}
+function ghostPosAt(t) {
+  if (!ghostRec || !ghostRec.pts || ghostRec.pts.length === 0) return null;
+  var pts = ghostRec.pts;
+  if (t <= 0) return pts[0];
+  var f = t / REC_DT, i = Math.floor(f);
+  if (i >= pts.length - 1) return pts[pts.length - 1];
+  var fr = f - i, a = pts[i], b = pts[i + 1];
+  return [a[0] + (b[0] - a[0]) * fr, a[1] + (b[1] - a[1]) * fr, lerpAngle(a[2], b[2], fr)];
+}
+
+// ---------- Game state ----------
+var state = 'menu'; // 'menu' | 'playing' | 'over'
+var player, cops, skidmarks, particles;
+var camX = 0, camY = 0;
+var timeAlive, distancePx, stars, bust, spawnTimer, starFlash;
+
+function makeCar(x, y, color, isCop) {
+  return { x: x, y: y, angle: -Math.PI / 2, vx: 0, vy: 0,
+           color: color, isCop: !!isCop, wob: Math.random() * 10 };
+}
+function resetGame() {
+  player = makeCar(0, 0, '#ffb03a', false);
+  player.angle = -Math.PI / 2;
+  cops = [];
+  skidmarks = [];
+  particles = [];
+  timeAlive = 0;
+  distancePx = 0;
+  stars = 1;
+  bust = 0;
+  spawnTimer = 0;
+  starFlash = 0;
+  // mode state
+  runPath = [[player.x, player.y, player.angle]];
+  recTimer = 0;
+  ghostBeaten = false;
+  ghostBonus = 0;
+  catchMeter = 0;
+  level = 1;
+  rebirthedThisRun = false;
+  escaper = makeCar(0, 0, '#ffb03a', false);
+  escPrev = null; escSpeed = 0;
+  camX = player.x; camY = player.y;
+  applyZone(0);
+}
+resetGame();
+
+// ---------- Input ----------
+var keys = {};
+var touchIn = { left: false, right: false, gas: false, brake: false, drift: false };
+window.addEventListener('keydown', function (e) {
+  keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].indexOf(e.code) >= 0) e.preventDefault();
+  if (state === 'menu' && (e.code === 'Space' || e.code === 'Enter')) startGame(gameMode);
+  else if (state === 'over' && (e.code === 'Space' || e.code === 'Enter')) startGame(gameMode);
+});
+window.addEventListener('keyup', function (e) { keys[e.code] = false; });
+
+function bindBtn(id, prop) {
+  var el = document.getElementById(id);
+  function on(e) { e.preventDefault(); touchIn[prop] = true; el.classList.add('on');
+    document.body.classList.add('touch'); }
+  function off(e) { e.preventDefault(); touchIn[prop] = false; el.classList.remove('on'); }
+  el.addEventListener('pointerdown', on);
+  el.addEventListener('pointerup', off);
+  el.addEventListener('pointerleave', off);
+  el.addEventListener('pointercancel', off);
+  el.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+}
+bindBtn('btnLeft', 'left'); bindBtn('btnRight', 'right');
+bindBtn('btnGas', 'gas'); bindBtn('btnBrake', 'brake'); bindBtn('btnDrift', 'drift');
+window.addEventListener('touchstart', function () { document.body.classList.add('touch'); }, { passive: true });
+document.addEventListener('touchmove', function (e) { e.preventDefault(); }, { passive: false });
+
+function readInput() {
+  var throttle = 0, steer = 0, drift = false;
+  if (keys['ArrowUp'] || keys['KeyW'] || touchIn.gas) throttle += 1;
+  if (keys['ArrowDown'] || keys['KeyS'] || touchIn.brake) throttle -= 1;
+  if (keys['ArrowLeft'] || keys['KeyA'] || touchIn.left) steer -= 1;
+  if (keys['ArrowRight'] || keys['KeyD'] || touchIn.right) steer += 1;
+  if (keys['Space'] || keys['ShiftLeft'] || keys['ShiftRight'] || touchIn.drift) drift = true;
+  return { throttle: throttle, steer: steer, drift: drift };
+}
+
+// ---------- Sound (tiny WebAudio, guarded) ----------
+var audioCtx = null, sirenOsc = null, sirenGain = null, soundOn = true;
+function initAudio() {
+  if (audioCtx) { if (audioCtx.state === 'suspended') audioCtx.resume(); return; }
+  try {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    audioCtx = new AC();
+    sirenOsc = audioCtx.createOscillator();
+    sirenGain = audioCtx.createGain();
+    sirenOsc.type = 'triangle';
+    sirenGain.gain.value = 0;
+    var lfo = audioCtx.createOscillator();
+    var lfoGain = audioCtx.createGain();
+    lfo.frequency.value = 0.55; lfoGain.gain.value = 90;
+    lfo.connect(lfoGain); lfoGain.connect(sirenOsc.frequency);
+    sirenOsc.frequency.value = 740;
+    sirenOsc.connect(sirenGain); sirenGain.connect(audioCtx.destination);
+    sirenOsc.start(); lfo.start();
+  } catch (err) { audioCtx = null; }
+}
+function setSiren(on) {
+  if (!audioCtx || !sirenGain) return;
+  try {
+    sirenGain.gain.setTargetAtTime(on && soundOn ? 0.018 : 0, audioCtx.currentTime, 0.2);
+  } catch (err) {}
+}
+function beep(freq, dur, delay, vol) {
+  if (!audioCtx || !soundOn) return;
+  try {
+    var t = audioCtx.currentTime + (delay || 0);
+    var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+    o.type = 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.05, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  } catch (err) {}
+}
+soundBtn.addEventListener('click', function () {
+  soundOn = !soundOn;
+  soundBtn.textContent = soundOn ? '🔊' : '🔇';
+  if (!soundOn) setSiren(false); else if (state === 'playing') setSiren(true);
+});
+
+// ---------- Physics ----------
+var BASE_MAX = 430;        // px/s forward (before engine upgrades)
+var PLAYER_REV = 170;
+var ACCEL = 460;
+function stepCar(car, throttle, steer, drift, dt, maxSpeed) {
+  var fx = Math.cos(car.angle), fy = Math.sin(car.angle);
+  var rx = -fy, ry = fx; // right vector
+  var vf = car.vx * fx + car.vy * fy;
+  var vl = car.vx * rx + car.vy * ry;
+
+  // steering: turns with speed, flips in reverse
+  var spdFactor = Math.max(-1, Math.min(1, vf / 200));
+  var turnRate = 2.5 + (drift ? 1.1 : 0);
+  car.angle += steer * turnRate * spdFactor * dt;
+  fx = Math.cos(car.angle); fy = Math.sin(car.angle);
+  rx = -fy; ry = fx;
+
+  // engine / brake (player vehicles + Rockets give extra shove)
+  var accMul = car.isPlayerCop ? 1 + 0.12 * copUpg.rockets : (!car.isCop ? vehDef().accelMul : 1);
+  if (throttle > 0) vf += ACCEL * accMul * throttle * dt;
+  else if (throttle < 0) {
+    if (vf > 12) vf += 720 * throttle * dt;       // braking
+    else vf += 260 * throttle * dt;               // reverse
+  }
+  // drag + rolling resistance
+  vf -= vf * 0.55 * dt;
+  if (throttle === 0) vf -= vf * 1.1 * dt;
+  if (drift) vf -= vf * 0.25 * dt; // handbrake scrub
+  var cap = throttle < 0 && vf < 0 ? -PLAYER_REV : maxSpeed;
+  if (vf > maxSpeed) vf = maxSpeed;
+  if (vf < -PLAYER_REV) vf = -PLAYER_REV;
+  if (Math.abs(vf) < 2 && throttle === 0) vf = 0;
+
+  // lateral grip: high normally, low while drifting -> rear slides
+  var grip = drift ? 1.7 : 8.5;
+  if (car.isPlayerCop) {
+    // cop machine: on Mars it GLIDES like the UFO chasers (low lateral grip)
+    grip = car.glide ? (drift ? 1.1 : 3.0) : (drift ? 1.9 : 9.0);
+  } else if (!car.isCop) {
+    // escaper: the current vehicle's own feel + ITS Grip upgrades
+    var vd = vehDef();
+    grip = drift ? vd.driftGrip + 0.35 * upg.grip
+                 : (8.5 + 0.9 * upg.grip) * vd.gripMul * (vd.id === 'snow' && curZone === 2 ? 1.3 : 1);
+  }
+  vl *= Math.exp(-grip * dt);
+  if (Math.abs(vl) < 1) vl = 0;
+
+  car.vx = fx * vf + rx * vl;
+  car.vy = fy * vf + ry * vl;
+  car.x += car.vx * dt;
+  car.y += car.vy * dt;
+  car.vf = vf; car.vl = vl;
+  return Math.abs(vl) > 55 || (drift && Math.abs(vf) > 60); // sliding?
+}
+
+// ---------- Police ----------
+function copMaxSpeed() {
+  // measured against the BASE car (430) so Engine upgrades really help.
+  // Cops start slower, catch up with stars and with each new zone.
+  // 🔄 REBIRTH SCALING: every rebirth makes chasers +5% faster!
+  var f = 0.80 + stars * 0.045 + curZone * 0.03 + rebirths * 0.05;
+  if (timeAlive < 18) f = Math.min(f, 0.82 + rebirths * 0.05); // easy opening (scaled too)
+  return BASE_MAX * Math.min(f, 1.04 + curZone * 0.03 + rebirths * 0.05);
+}
+function spawnCop() {
+  var ang = Math.random() * Math.PI * 2;
+  var dist = 720 + Math.random() * 260;
+  var x = player.x + Math.cos(ang) * dist;
+  var y = player.y + Math.sin(ang) * dist;
+  if (pointInBuilding(x, y)) { // nudge onto a street centreline
+    x = Math.round(x / TILE) * TILE;
+    y = Math.round(y / TILE) * TILE;
+  }
+  var c = makeCar(x, y, '#2b6cb0', true);
+  c.angle = Math.atan2(player.y - y, player.x - x);
+  if (curZone === 3) c.isShip = true; // Mars spawns UFOs
+  cops.push(c);
+}
+function stepCop(c, dt) {
+  // aim at where the player is heading
+  var lead = 0.45;
+  var tx = player.x + player.vx * lead;
+  var ty = player.y + player.vy * lead;
+  var dx = tx - c.x, dy = ty - c.y;
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  var desired = Math.atan2(dy, dx);
+  var diff = desired - c.angle;
+  while (diff > Math.PI) diff -= Math.PI * 2;
+  while (diff < -Math.PI) diff += Math.PI * 2;
+  var steer = Math.max(-1, Math.min(1, diff * 2.2));
+  var throttle = 1;
+  if (Math.abs(diff) > 2.4) throttle = -0.6; // badly turned around: back up
+  var sliding;
+  if (c.isShip) {
+    // UFOs glide: always forward, smoother steering, and they HOVER
+    // straight over rocks — no building collisions on Mars!
+    sliding = stepCar(c, 1, Math.max(-1, Math.min(1, diff * 1.7)), false, dt, copMaxSpeed() * 1.03);
+  } else {
+    sliding = stepCar(c, throttle, steer, Math.abs(diff) > 1.15, dt, copMaxSpeed());
+    collideBuildings(c);
+  }
+  // gentle rubber-band: far cops get a small boost, close cops none
+  if (dist > 620) {
+    c.vx += Math.cos(c.angle) * 60 * dt;
+    c.vy += Math.sin(c.angle) * 60 * dt;
+  }
+  return sliding;
+}
+
+// car-to-car bumps
+function collideCars(a, b) {
+  var dx = b.x - a.x, dy = b.y - a.y;
+  var d = Math.sqrt(dx * dx + dy * dy);
+  var min = CAR_R * 2 - 2;
+  if (d > 0.01 && d < min) {
+    var ux = dx / d, uy = dy / d, push = (min - d) / 2;
+    a.x -= ux * push; a.y -= uy * push;
+    b.x += ux * push; b.y += uy * push;
+    var rvx = b.vx - a.vx, rvy = b.vy - a.vy;
+    var rel = rvx * ux + rvy * uy;
+    if (rel < 0) {
+      var imp = -rel * 0.55;
+      a.vx -= ux * imp; a.vy -= uy * imp;
+      b.vx += ux * imp; b.vy += uy * imp;
+    }
+  }
+}
+
+// ---------- Effects ----------
+function addSkid(car) {
+  var fx = Math.cos(car.angle), fy = Math.sin(car.angle);
+  var rx = -fy, ry = fx;
+  for (var s = -1; s <= 1; s += 2) {
+    var wx = car.x - fx * 13 + rx * 8 * s;
+    var wy = car.y - fy * 13 + ry * 8 * s;
+    var last = car['skid' + s];
+    if (last) skidmarks.push({ x1: last.x, y1: last.y, x2: wx, y2: wy, a: 0.55 });
+    car['skid' + s] = { x: wx, y: wy };
+  }
+  if (skidmarks.length > 700) skidmarks.splice(0, skidmarks.length - 700);
+}
+function clearSkid(car) { car['skid-1'] = null; car['skid1'] = null; }
+function addSmoke(car) {
+  var fx = Math.cos(car.angle), fy = Math.sin(car.angle);
+  particles.push({ x: car.x - fx * 14, y: car.y - fy * 14,
+    vx: -car.vx * 0.12 + (Math.random() - 0.5) * 34,
+    vy: -car.vy * 0.12 + (Math.random() - 0.5) * 34,
+    life: 0.55 + Math.random() * 0.3, max: 0.85,
+    r: 5 + Math.random() * 6 });
+  if (particles.length > 220) particles.splice(0, particles.length - 220);
+}
+
+// ---------- Update ----------
+function update(dt) {
+  var inp = readInput();
+  var sliding = stepCar(player, inp.throttle, inp.steer, inp.drift, dt, effMaxSpeed());
+  if (collideBuildings(player)) { /* bump */ }
+  var speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+  distancePx += speed * dt;
+  timeAlive += dt;
+
+  // GHOST RECORDING: sample this run's path every ~150 ms (both modes)
+  recTimer += dt;
+  if (recTimer >= REC_DT && runPath.length < MAX_PTS) {
+    recTimer = 0;
+    runPath.push([Math.round(player.x), Math.round(player.y), Math.round(player.angle * 100) / 100]);
+  }
+  // GHOST MODE: survive past your ghost's recorded time to BEAT it!
+  if (gameMode === 'ghost' && ghostRec && !ghostBeaten && timeAlive >= ghostRec.time) {
+    ghostBeaten = true;
+    ghostBonus = GHOST_BONUS;
+    credits += ghostBonus;
+    saveWallet();
+    showBanner('🏆 YOU BEAT YOUR GHOST! 🏆');
+    beep(784, 0.12, 0, 0.06); beep(988, 0.12, 0.1, 0.06); beep(1319, 0.22, 0.2, 0.07);
+  }
+
+  if (sliding) { addSkid(player); if (inp.drift) addSmoke(player); }
+  else clearSkid(player);
+
+  // stars: +1 every 20 s, capped at 5
+  var newStars = Math.min(5, 1 + Math.floor(timeAlive / 20));
+  if (newStars > stars) {
+    stars = newStars; starFlash = 1.2;
+    beep(880, 0.12, 0, 0.06); beep(1320, 0.18, 0.1, 0.06);
+  }
+  if (starFlash > 0) starFlash -= dt;
+
+  // zone advance (Downtown -> Desert -> Snowy Port -> MARS)
+  var zNow = zoneFor(timeAlive);
+  if (zNow !== curZone) {
+    applyZone(zNow);
+    showBanner(zNow === 3 ? '👽 NOW ENTERING: MARS! 👽' : 'NOW ENTERING: ' + ZONES[zNow].name);
+    beep(523, 0.12, 0, 0.06); beep(784, 0.22, 0.12, 0.06);
+  }
+
+  // REBIRTH LEVELS (Classic Chase only): beat each survive-target to level up.
+  // Beat the FINAL Mars target (level 10) and you 🔄 REBIRTH!
+  if (gameMode === 'classic' && timeAlive >= levelTarget(level)) {
+    if (level >= FINAL_LEVEL) {
+      doRebirth();
+    } else {
+      level++;
+      showBanner('⭐ LEVEL ' + level + ' — Survive ' + fmtTime(levelTarget(level)) + '! ⭐');
+      beep(880, 0.12, 0, 0.06); beep(1175, 0.16, 0.1, 0.06);
+    }
+  }
+
+  // police population (later zones send extra chasers)
+  spawnTimer -= dt;
+  var target = Math.min(1 + stars + (curZone >= 2 ? 1 : 0) + (curZone === 3 ? 1 : 0), 8);
+  if (cops.length < target && spawnTimer <= 0) { spawnCop(); spawnTimer = 1.6; }
+  var i;
+  for (i = cops.length - 1; i >= 0; i--) {
+    var c = cops[i];
+    var cSlide = stepCop(c, dt);
+    if (cSlide) addSkid(c); else clearSkid(c);
+    var cdx = c.x - player.x, cdy = c.y - player.y;
+    if (cdx * cdx + cdy * cdy > 1500 * 1500) cops.splice(i, 1); // lost -> give up
+  }
+  // bumps
+  for (i = 0; i < cops.length; i++) {
+    collideCars(player, cops[i]);
+    for (var j = i + 1; j < cops.length; j++) collideCars(cops[i], cops[j]);
+  }
+
+  // bust meter: fills while a cop is on top of you AND you're slow
+  var pinned = false;
+  for (i = 0; i < cops.length; i++) {
+    var bx = cops[i].x - player.x, by = cops[i].y - player.y;
+    if (bx * bx + by * by < 58 * 58) { pinned = true; break; }
+  }
+  // bust meter: vehicle Armour slows it, but every REBIRTH fills it +5% faster!
+  if (pinned && speed < 75) bust += dt * 0.42 * (1 - 0.18 * upg.armour) * vehDef().armourMul * (1 + 0.05 * rebirths);
+  else bust -= dt * 0.30;
+  bust = Math.max(0, Math.min(1, bust));
+  if (bust >= 1) { gameOver(); return; }
+
+  // particles
+  for (i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.life -= dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.r += 14 * dt;
+  }
+  for (i = 0; i < skidmarks.length; i++) skidmarks[i].a -= dt * 0.03;
+  while (skidmarks.length && skidmarks[0].a <= 0) skidmarks.shift();
+
+  // camera
+  camX += (player.x - camX) * Math.min(1, dt * 5);
+  camY += (player.y - camY) * Math.min(1, dt * 5);
+
+  updateHUD(speed);
+}
+
+// ---------- REBIRTH! ----------
+function doRebirth() {
+  rebirths++;
+  level = 1;
+  rebirthedThisRun = true;
+  credits += 250; // rebirth bonus
+  saveRebirth();
+  saveWallet();
+  buildVehRow();       // maybe a shiny new vehicle just unlocked!
+  buildUpg(); buildCopUpg(); refreshProgUI();
+  var nv = null;
+  for (var i = 0; i < VEHICLES.length; i++) if (VEHICLES[i].unlock === rebirths) nv = VEHICLES[i];
+  showBanner(nv ? '🔄 REBIRTH ' + rebirths + '! New vehicle: ' + nv.name + '! 🔄'
+                : '🔄 REBIRTH ' + rebirths + '! Targets up, police faster! 🔄');
+  beep(523, 0.12, 0, 0.07); beep(659, 0.12, 0.1, 0.07); beep(784, 0.12, 0.2, 0.07); beep(1047, 0.3, 0.3, 0.08);
+}
+
+// ---------- POLICE MODE update (you ARE the law!) ----------
+function updatePolice(dt) {
+  var inp = readInput();
+  var sliding = stepCar(player, inp.throttle, inp.steer, inp.drift, dt, copPlayerMaxSpeed());
+  var hovering = (curZone === 3); // on Mars your spaceship hovers over the rocks
+  if (!hovering) collideBuildings(player);
+  var speed = Math.sqrt(player.vx * player.vx + player.vy * player.vy);
+  distancePx += speed * dt;
+  timeAlive += dt;
+
+  if (sliding && !hovering) { addSkid(player); if (inp.drift) addSmoke(player); }
+  else clearSkid(player);
+
+  // the escaper replays your best run, on the same clock
+  var gp = ghostPosAt(Math.min(timeAlive, ghostRec ? ghostRec.time : 0));
+  if (gp) {
+    if (escPrev && dt > 0) {
+      var es = Math.sqrt((gp[0] - escPrev[0]) * (gp[0] - escPrev[0]) + (gp[1] - escPrev[1]) * (gp[1] - escPrev[1])) / dt;
+      escSpeed += (es - escSpeed) * 0.35; // smoothed replay speed
+    }
+    escPrev = gp;
+    escaper.x = gp[0]; escaper.y = gp[1]; escaper.angle = gp[2];
+    escaper.vx = 0; escaper.vy = 0;
+  }
+
+  // ghost's wanted stars follow the same timeline
+  var newStars = Math.min(5, 1 + Math.floor(timeAlive / 20));
+  if (newStars > stars) { stars = newStars; starFlash = 1.2; beep(880, 0.12, 0, 0.05); }
+  if (starFlash > 0) starFlash -= dt;
+
+  // zones advance on the same thresholds the ghost run crossed
+  var zNow = zoneFor(timeAlive);
+  if (zNow !== curZone) {
+    applyZone(zNow);
+    showBanner(zNow === 3 ? '👽 MARS! Your cruiser is now a SPACESHIP! 👽' : 'NOW ENTERING: ' + ZONES[zNow].name);
+    beep(523, 0.12, 0, 0.06); beep(784, 0.22, 0.12, 0.06);
+  }
+
+  // CATCH METER (mirror of the bust meter): pin the escaper while it's slow.
+  // Catch Tech fills it faster — but every rebirth, past-you escapes +5% harder!
+  var gd = escaper ? Math.sqrt((escaper.x - player.x) * (escaper.x - player.x) + (escaper.y - player.y) * (escaper.y - player.y)) : 9999;
+  var fill = 0;
+  if (gd < 58 && escSpeed < 90) fill = 1;       // on top of a slow escaper: full pin
+  else if (gd < 38) fill = 0.6;                 // glued to its bumper: pressure
+  if (fill > 0) catchMeter += dt * 0.42 * fill * (1 + 0.22 * copUpg.catch) * Math.max(0.6, 1 - 0.05 * rebirths);
+  else catchMeter -= dt * 0.30;
+  catchMeter = Math.max(0, Math.min(1, catchMeter));
+  bust = catchMeter; // HUD bar + red vignette show the catch meter in this mode
+  if (catchMeter >= 1) { policeEnd(true); return; }
+
+  // the ghost reaches the end of its recorded run… and gets away!
+  if (ghostRec && timeAlive >= ghostRec.time) { policeEnd(false); return; }
+
+  // particles + skid fade
+  var i;
+  for (i = particles.length - 1; i >= 0; i--) {
+    var p = particles[i];
+    p.life -= dt;
+    if (p.life <= 0) { particles.splice(i, 1); continue; }
+    p.x += p.vx * dt; p.y += p.vy * dt; p.r += 14 * dt;
+  }
+  for (i = 0; i < skidmarks.length; i++) skidmarks[i].a -= dt * 0.03;
+  while (skidmarks.length && skidmarks[0].a <= 0) skidmarks.shift();
+
+  camX += (player.x - camX) * Math.min(1, dt * 5);
+  camY += (player.y - camY) * Math.min(1, dt * 5);
+
+  updateHUD(speed);
+}
+
+// ---------- HUD ----------
+function fmtTime(s) {
+  var m = Math.floor(s / 60), ss = Math.floor(s % 60);
+  return m + ':' + (ss < 10 ? '0' : '') + ss;
+}
+function starString(n) {
+  var s = '';
+  for (var i = 0; i < 5; i++) s += i < n ? '★' : '<span class="off">★</span>';
+  return s;
+}
+function currentScore() { return Math.floor(timeAlive) * 10 + Math.floor(distancePx / 10); }
+function updateHUD(speed) {
+  starsEl.innerHTML = starString(stars);
+  starsEl.style.transform = starFlash > 0 ? 'scale(' + (1 + starFlash * 0.25) + ')' : '';
+  stTime.textContent = fmtTime(timeAlive);
+  stDist.textContent = Math.floor(distancePx / 10) + ' m';
+  stSpeed.textContent = Math.round(speed * 0.22);
+  stScore.textContent = currentScore();
+  bustBar.style.width = (bust * 100) + '%';
+  bustLabel.style.opacity = bust > 0.02 ? '1' : '0';
+  var dk = darknessAt(cycleT);
+  stDay.textContent = dk > 0.6 ? '🌙 Night' : (dk > 0.05 ? '🌆 Dusk/dawn' : '☀️ Day');
+  if (gameMode === 'ghost' && ghostRec) {
+    stGhost.innerHTML = '👻 Ghost <b>' + fmtTime(ghostRec.time) + '</b> · 🏃 You <b>' +
+      fmtTime(timeAlive) + '</b>' + (ghostBeaten ? ' 🏆 BEATEN!' : '');
+  } else if (gameMode === 'police' && ghostRec) {
+    stGhost.innerHTML = '💨 Escaper gets away in <b>' + fmtTime(Math.max(0, ghostRec.time - timeAlive)) + '</b>';
+  }
+  if (gameMode === 'classic') {
+    stLevel.innerHTML = '🎯 Lv <b>' + level + '/' + FINAL_LEVEL + '</b> · target <b>' +
+      fmtTime(levelTarget(level)) + '</b> · 🔄 <b>' + rebirths + '</b>';
+  } else {
+    stLevel.innerHTML = '🔄 Rebirths <b>' + rebirths + '</b>';
+  }
+}
+
+// ---------- Drawing ----------
+function drawCar(car) {
+  ctx.save();
+  ctx.translate(car.x - camX + W / 2, car.y - camY + H / 2);
+  ctx.rotate(car.angle);
+  if (car.isShip) {
+    // ---- UFO (Mars chaser): hovering saucer with glowing rim lights ----
+    var bob = Math.sin(performance.now() / 260 + car.wob) * 3;
+    ctx.fillStyle = 'rgba(0,0,0,.30)';
+    ctx.beginPath(); ctx.ellipse(3, 7, 27, 12, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(0, bob - 4);
+    ctx.fillStyle = '#39424e';
+    ctx.beginPath(); ctx.ellipse(0, 4, 26, 9, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#c8ccd4';
+    ctx.beginPath(); ctx.ellipse(0, 0, 26, 10, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = 'rgba(150,220,255,.9)';
+    ctx.beginPath(); ctx.ellipse(2, -3, 11, 8, 0, Math.PI, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#7fe07a';
+    ctx.beginPath(); ctx.arc(2, -6, 2.6, 0, Math.PI * 2); ctx.fill(); // little pilot light
+    var rimBlink = Math.floor(performance.now() / 240 + car.wob) % 2 === 0;
+    for (var ri = 0; ri < 6; ri++) {
+      var ra = ri / 6 * Math.PI * 2;
+      ctx.fillStyle = (ri % 2 === 0) === rimBlink ? '#ff5252' : '#ffd83d';
+      ctx.beginPath(); ctx.arc(Math.cos(ra) * 21, Math.sin(ra) * 8, 2.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+    return;
+  }
+  if (!car.isCop && !car.isPlayerCop) {
+    // the escaper (you!) — drawn as your chosen vehicle
+    drawPlayerVehicle(car);
+    ctx.restore();
+    return;
+  }
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(2, 4, 24, 13, 0, 0, Math.PI * 2); ctx.fill();
+  // body
+  ctx.fillStyle = car.isPlayerCop ? copCust.body : car.color;
+  roundRect(-22, -11, 44, 22, 7); ctx.fill();
+  // nose
+  ctx.fillStyle = car.isPlayerCop ? copCust.trimF : 'rgba(255,255,255,.16)';
+  roundRect(8, -10, 13, 20, 5); ctx.fill();
+  // cabin / windshield
+  ctx.fillStyle = '#16222e';
+  roundRect(-9, -8.5, 15, 17, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(140,200,255,.5)';
+  roundRect(3, -8.5, 4, 17, 2); ctx.fill();
+  // wheels
+  ctx.fillStyle = car.isPlayerCop ? copCust.wheels : '#0a0a0a';
+  ctx.fillRect(-16, -13.5, 10, 4.5); ctx.fillRect(-16, 9, 10, 4.5);
+  ctx.fillRect(9, -13.5, 10, 4.5); ctx.fillRect(9, 9, 10, 4.5);
+  if (car.isCop || car.isPlayerCop) {
+    // police markings + light bar
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(-14, -11, 8, 22);
+    ctx.fillStyle = '#16222e';
+    ctx.font = 'bold 8px Arial'; ctx.textAlign = 'center';
+    ctx.fillText('POLICE', -10, 3);
+    var blink = Math.floor(performance.now() / 280) % 2 === 0;
+    ctx.fillStyle = blink ? '#ff3b30' : '#ffe27a';
+    ctx.fillRect(-4, -7, 7, 6);
+    ctx.fillStyle = blink ? '#ffe27a' : '#2f7bff';
+    ctx.fillRect(-4, 1, 7, 6);
+    // headlights glow when close is handled by proximity siren only
+  } else {
+    // racer stripe (front trim colour) + spoiler (rear trim colour)
+    ctx.fillStyle = cust.trimF;
+    ctx.fillRect(-22, -3, 44, 6);
+    ctx.fillStyle = 'rgba(255,255,255,.35)';
+    ctx.fillRect(-22, -1.4, 44, 2.8);
+    ctx.fillStyle = cust.trimR;
+    ctx.fillRect(-24, -11, 4, 22);
+    // headlights (colour shows at night in the light cones)
+    ctx.fillStyle = cust.lights;
+    ctx.beginPath(); ctx.arc(21, -7.5, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(21, 7.5, 2.4, 0, Math.PI * 2); ctx.fill();
+    // tail lights
+    ctx.fillStyle = '#ff4040';
+    ctx.fillRect(-22.5, -8, 2.4, 4); ctx.fillRect(-22.5, 4, 2.4, 4);
+  }
+  ctx.restore();
+}
+// The escaper's vehicle — one distinct look per rebirth unlock.
+// (Called inside drawCar's translated/rotated frame; car nose = +x.)
+function drawPlayerVehicle(car) {
+  var v = vehDef().id;
+  if (v === 'bike') {
+    // 🏍️ BIKE: slim, two wheels in line, rider with helmet
+    ctx.fillStyle = 'rgba(0,0,0,.3)';
+    ctx.beginPath(); ctx.ellipse(2, 3, 21, 8, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cust.wheels;
+    ctx.beginPath(); ctx.arc(-14, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(14, 0, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cust.body;
+    roundRect(-16, -4.5, 32, 9, 4); ctx.fill();
+    ctx.fillStyle = cust.trimF;
+    ctx.beginPath(); ctx.arc(3, 0, 6.5, 0, Math.PI * 2); ctx.fill(); // tank
+    ctx.fillStyle = cust.trimR;
+    roundRect(-13, -4, 11, 8, 3); ctx.fill(); // seat + tail
+    ctx.fillStyle = '#16222e';
+    ctx.beginPath(); ctx.arc(-3, 0, 5.5, 0, Math.PI * 2); ctx.fill(); // helmet
+    ctx.fillStyle = 'rgba(160,215,255,.85)';
+    ctx.fillRect(0, -3.4, 4.4, 6.8); // visor
+    ctx.fillStyle = cust.lights;
+    ctx.beginPath(); ctx.arc(18.5, 0, 2.4, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+  if (v === 'snow') {
+    // 🛷 SNOWMOBILE: front skis, wide body, rear track
+    ctx.fillStyle = 'rgba(0,0,0,.32)';
+    ctx.beginPath(); ctx.ellipse(2, 4, 25, 13, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cust.trimF;
+    ctx.fillRect(6, -14, 17, 4); ctx.fillRect(6, 10, 17, 4); // skis
+    ctx.fillStyle = cust.wheels;
+    ctx.fillRect(-21, -8.5, 13, 17); // rear track
+    ctx.fillStyle = cust.body;
+    roundRect(-14, -10.5, 36, 21, 8); ctx.fill();
+    ctx.fillStyle = '#16222e';
+    roundRect(-13, -6.5, 14, 13, 3); ctx.fill(); // seat
+    ctx.fillStyle = 'rgba(150,220,255,.55)';
+    roundRect(12, -7, 6, 14, 3); ctx.fill(); // windshield
+    ctx.fillStyle = cust.lights;
+    ctx.beginPath(); ctx.arc(21, -5, 2.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(21, 5, 2.3, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+  if (v === 'hover') {
+    // 🛸 HOVER SPEEDER: no wheels, glowing underglow, glass dome
+    var bob = Math.sin(performance.now() / 280) * 2;
+    ctx.fillStyle = 'rgba(0,0,0,.28)';
+    ctx.beginPath(); ctx.ellipse(3, 6, 26, 11, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.translate(0, bob - 2);
+    ctx.fillStyle = hexToRgba(cust.lights, 0.4);
+    ctx.beginPath(); ctx.ellipse(0, 3, 26, 11, 0, 0, Math.PI * 2); ctx.fill(); // underglow
+    ctx.fillStyle = cust.body;
+    ctx.beginPath(); ctx.ellipse(0, 0, 25, 11.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cust.trimR;
+    ctx.fillRect(-26, -4, 5, 8); // rear thruster
+    ctx.fillStyle = 'rgba(150,220,255,.9)';
+    ctx.beginPath(); ctx.ellipse(3, -1, 11, 7.5, 0, Math.PI, Math.PI * 2); ctx.fill(); // dome
+    ctx.fillStyle = cust.trimF;
+    ctx.beginPath(); ctx.arc(-12, -7, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(-12, 7, 2.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = cust.lights;
+    ctx.beginPath(); ctx.arc(23, -5, 2.3, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(23, 5, 2.3, 0, Math.PI * 2); ctx.fill();
+    return;
+  }
+  // 🚗 CAR (the original look)
+  ctx.fillStyle = 'rgba(0,0,0,.35)';
+  ctx.beginPath(); ctx.ellipse(2, 4, 24, 13, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = cust.body;
+  roundRect(-22, -11, 44, 22, 7); ctx.fill();
+  ctx.fillStyle = cust.trimF;
+  roundRect(8, -10, 13, 20, 5); ctx.fill();
+  ctx.fillStyle = '#16222e';
+  roundRect(-9, -8.5, 15, 17, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(140,200,255,.5)';
+  roundRect(3, -8.5, 4, 17, 2); ctx.fill();
+  ctx.fillStyle = cust.wheels;
+  ctx.fillRect(-16, -13.5, 10, 4.5); ctx.fillRect(-16, 9, 10, 4.5);
+  ctx.fillRect(9, -13.5, 10, 4.5); ctx.fillRect(9, 9, 10, 4.5);
+  ctx.fillStyle = cust.trimF;
+  ctx.fillRect(-22, -3, 44, 6);
+  ctx.fillStyle = 'rgba(255,255,255,.35)';
+  ctx.fillRect(-22, -1.4, 44, 2.8);
+  ctx.fillStyle = cust.trimR;
+  ctx.fillRect(-24, -11, 4, 22);
+  ctx.fillStyle = cust.lights;
+  ctx.beginPath(); ctx.arc(21, -7.5, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(21, 7.5, 2.4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#ff4040';
+  ctx.fillRect(-22.5, -8, 2.4, 4); ctx.fillRect(-22.5, 4, 2.4, 4);
+}
+
+// 👻 The ghost of your best run — pale, see-through, floaty.
+function drawGhost() {
+  if (gameMode !== 'ghost' || !ghostRec) return;
+  if (state !== 'playing' && state !== 'over') return;
+  var t = timeAlive, gt = ghostRec.time;
+  var gp = null, alpha = 0.5, boom = -1;
+  if (t < gt) gp = ghostPosAt(t);
+  else if (t < gt + 1.2) { gp = ghostPosAt(gt); boom = (t - gt) / 1.2; alpha = 0.5 * (1 - boom); }
+  if (!gp) return;
+  var sx = gp[0] - camX + W / 2, sy = gp[1] - camY + H / 2;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = 'rgba(170,220,255,.5)';
+  ctx.beginPath(); ctx.ellipse(sx, sy, 33, 20, 0, 0, Math.PI * 2); ctx.fill(); // ghostly glow
+  ctx.translate(sx, sy);
+  ctx.rotate(gp[2]);
+  ctx.fillStyle = '#eaf6ff';
+  roundRect(-22, -11, 44, 22, 7); ctx.fill();
+  ctx.fillStyle = '#b9dcf7';
+  roundRect(8, -10, 13, 20, 5); ctx.fill();
+  ctx.fillStyle = '#d6ecff';
+  roundRect(-9, -8.5, 15, 17, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(90,130,170,.65)';
+  ctx.fillRect(-16, -13.5, 10, 4.5); ctx.fillRect(-16, 9, 10, 4.5);
+  ctx.fillRect(9, -13.5, 10, 4.5); ctx.fillRect(9, 9, 10, 4.5);
+  ctx.restore();
+  if (boom >= 0) {
+    // the moment the ghost's run ended: it gets BUSTED and fades out 💥
+    ctx.save();
+    ctx.globalAlpha = 1 - boom;
+    ctx.font = (30 + boom * 34) + 'px Arial';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('💥', sx, sy - boom * 22);
+    ctx.restore();
+  }
+}
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function draw() {
+  // ground / road surface for the current zone
+  var Z = ZONES[curZone];
+  ctx.fillStyle = Z.ground;
+  ctx.fillRect(0, 0, W, H);
+
+  var left = camX - W / 2, top = camY - H / 2;
+  var bx0 = Math.floor(left / TILE) - 1, bx1 = Math.floor((left + W) / TILE) + 1;
+  var by0 = Math.floor(top / TILE) - 1, by1 = Math.floor((top + H) / TILE) + 1;
+
+  // sidewalks + buildings
+  for (var bx = bx0; bx <= bx1; bx++) {
+    for (var by = by0; by <= by1; by++) {
+      var sx = bx * TILE - left, sy = by * TILE - top;
+      ctx.fillStyle = Z.block; // sidewalk / block base
+      ctx.fillRect(sx + 26, sy + 26, TILE - 52, TILE - 52);
+      var r = buildingRect(bx, by);
+      var ci = Math.floor(hash2(bx, by) * Z.buildings.length);
+      ctx.fillStyle = Z.buildings[ci];
+      if (curZone === 3) {
+        // MARS: rocks and craters instead of buildings
+        var rcx = r.x - left + r.w / 2, rcy = r.y - top + r.h / 2;
+        ctx.beginPath(); ctx.ellipse(rcx, rcy, r.w / 2, r.h / 2, hash2(bx, by) * 0.6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,.28)';
+        ctx.beginPath(); ctx.ellipse(rcx - r.w * 0.14, rcy - r.h * 0.1, r.w * 0.2, r.h * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,190,140,.20)';
+        ctx.beginPath(); ctx.ellipse(rcx + r.w * 0.2, rcy + r.h * 0.2, r.w * 0.13, r.h * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      } else {
+        ctx.fillRect(r.x - left, r.y - top, r.w, r.h);
+        // rooftop details
+        ctx.fillStyle = 'rgba(255,255,255,.08)';
+        var v = hash2(bx * 7, by * 13);
+        ctx.fillRect(r.x - left + 14 + v * 30, r.y - top + 14, r.w * 0.35, r.h * 0.3);
+        ctx.fillStyle = 'rgba(0,0,0,.18)';
+        ctx.fillRect(r.x - left + r.w * 0.55, r.y - top + r.h * 0.55, r.w * 0.3, r.h * 0.28);
+        ctx.strokeStyle = 'rgba(0,0,0,.35)';
+        ctx.strokeRect(r.x - left, r.y - top, r.w, r.h);
+        if (curZone === 2) { // snow cap
+          ctx.fillStyle = 'rgba(255,255,255,.8)';
+          ctx.fillRect(r.x - left, r.y - top, r.w, 9);
+        }
+        if (curZone === 1) { // desert: a cactus on some blocks
+          if (hash2(bx * 23, by * 29) > 0.62) {
+            ctx.fillStyle = '#3f7a3a';
+            var gx = sx + 52 + hash2(bx, by * 3) * 60, gy = sy + 52 + hash2(bx * 3, by) * 60;
+            ctx.fillRect(gx, gy, 7, 22); ctx.fillRect(gx - 7, gy + 6, 7, 5); ctx.fillRect(gx + 7, gy + 3, 7, 5);
+          }
+        }
+      }
+    }
+  }
+  // lane dashes on street centrelines (multiples of TILE)
+  ctx.strokeStyle = Z.line;
+  ctx.lineWidth = 3;
+  ctx.setLineDash([26, 30]);
+  ctx.beginPath();
+  var k;
+  for (k = bx0; k <= bx1 + 1; k++) {
+    var lx = k * TILE - left;
+    ctx.moveTo(lx, -40); ctx.lineTo(lx, H + 40);
+  }
+  for (k = by0; k <= by1 + 1; k++) {
+    var ly = k * TILE - top;
+    ctx.moveTo(-40, ly); ctx.lineTo(W + 40, ly);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // skid marks
+  ctx.lineWidth = 4;
+  for (var i = 0; i < skidmarks.length; i++) {
+    var s = skidmarks[i];
+    ctx.strokeStyle = 'rgba(12,12,12,' + s.a.toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.moveTo(s.x1 - left, s.y1 - top);
+    ctx.lineTo(s.x2 - left, s.y2 - top);
+    ctx.stroke();
+  }
+  // smoke
+  for (i = 0; i < particles.length; i++) {
+    var p = particles[i];
+    var al = 0.32 * (p.life / p.max);
+    ctx.fillStyle = 'rgba(230,230,230,' + al.toFixed(3) + ')';
+    ctx.beginPath();
+    ctx.arc(p.x - left, p.y - top, p.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // cars
+  for (i = 0; i < cops.length; i++) drawCar(cops[i]);
+  if (gameMode === 'police' && escaper && (state === 'playing' || state === 'over')) drawCar(escaper);
+  drawGhost();
+  drawCar(player);
+
+  // ---------- night ----------
+  var dark = darknessAt(cycleT);
+  if (dark > 0.02) {
+    ctx.fillStyle = 'rgba(7,11,34,' + (0.66 * dark).toFixed(3) + ')';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalCompositeOperation = 'lighter';
+
+    // lit windows on visible buildings
+    if (dark > 0.25) {
+      for (var wx = bx0; wx <= bx1; wx++) {
+        for (var wy = by0; wy <= by1; wy++) {
+          var wr = buildingRect(wx, wy);
+          var wins = Math.floor(hash2(wx * 11, wy * 19) * 5);
+          for (var wi = 0; wi < wins; wi++) {
+            var px = wr.x + 12 + hash2(wx * 31 + wi * 7, wy * 17) * (wr.w - 30);
+            var py = wr.y + 12 + hash2(wx * 13, wy * 29 + wi * 5) * (wr.h - 30);
+            ctx.fillStyle = 'rgba(255,214,130,' + (0.5 * dark).toFixed(3) + ')';
+            ctx.fillRect(px - left, py - top, 7, 9);
+          }
+        }
+      }
+      // streetlights at intersections
+      for (var sx2 = bx0; sx2 <= bx1 + 1; sx2++) {
+        for (var sy2 = by0; sy2 <= by1 + 1; sy2++) {
+          var lx2 = sx2 * TILE - left, ly2 = sy2 * TILE - top;
+          var sg = ctx.createRadialGradient(lx2, ly2, 2, lx2, ly2, 52);
+          sg.addColorStop(0, 'rgba(255,196,96,' + (0.34 * dark).toFixed(3) + ')');
+          sg.addColorStop(1, 'rgba(255,196,96,0)');
+          ctx.fillStyle = sg;
+          ctx.beginPath(); ctx.arc(lx2, ly2, 52, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+
+    // police lightbar glow (red / blue alternating)
+    if (state === 'playing' || state === 'over') {
+      var blinkOn = Math.floor(performance.now() / 280) % 2 === 0;
+      for (i = 0; i < cops.length; i++) {
+        var cxp = cops[i].x - left, cyp = cops[i].y - top;
+        var cg = ctx.createRadialGradient(cxp, cyp, 2, cxp, cyp, 46);
+        var cc = blinkOn ? '255,70,60' : '70,130,255';
+        cg.addColorStop(0, 'rgba(' + cc + ',' + (0.30 * dark).toFixed(3) + ')');
+        cg.addColorStop(1, 'rgba(' + cc + ',0)');
+        ctx.fillStyle = cg;
+        ctx.beginPath(); ctx.arc(cxp, cyp, 46, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+
+    // player headlight cones (tinted by chosen headlight colour)
+    var beam = Math.max(0, Math.min(1, (dark - 0.35) / 0.4));
+    if (beam > 0.01) {
+      var lightCol = gameMode === 'police' ? copCust.lights : cust.lights;
+      ctx.save();
+      ctx.translate(player.x - left, player.y - top);
+      ctx.rotate(player.angle);
+      var hg = ctx.createRadialGradient(24, 0, 8, 24, 0, 215);
+      hg.addColorStop(0, hexToRgba(lightCol, 0.50 * beam));
+      hg.addColorStop(1, hexToRgba(lightCol, 0));
+      ctx.fillStyle = hg;
+      ctx.beginPath();
+      ctx.moveTo(22, -10);
+      ctx.lineTo(222, -62);
+      ctx.lineTo(222, 62);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // bust warning vignette
+  if (state === 'playing' && bust > 0.25) {
+    var grad = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.72);
+    grad.addColorStop(0, 'rgba(255,0,0,0)');
+    grad.addColorStop(1, 'rgba(255,0,0,' + (0.28 * bust).toFixed(3) + ')');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ---------- Flow ----------
+function startGame(mode) {
+  gameMode = ((mode === 'ghost' || mode === 'police') && ghostRec) ? mode : 'classic';
+  initAudio();
+  resetGame();
+  state = 'playing';
+  if (gameMode === 'police') {
+    player.isPlayerCop = true;
+    player.color = copCust.body;
+    bustLabel.textContent = '🎯 CATCH METER 🎯';
+    var gp0 = ghostPosAt(0);
+    if (gp0) { escaper.x = gp0[0]; escaper.y = gp0[1]; escaper.angle = gp0[2]; }
+    // start a little behind the escaper — the chase is on!
+    player.x = escaper.x + 130; player.y = escaper.y + 130;
+    player.angle = Math.atan2(escaper.y - player.y, escaper.x - player.x);
+    camX = player.x; camY = player.y;
+  } else {
+    bustLabel.textContent = '⚠ BUSTED METER ⚠';
+  }
+  startScreen.style.display = 'none';
+  gameOverScreen.style.display = 'none';
+  hudEl.style.display = 'block';
+  soundBtn.style.display = 'block';
+  stGhost.style.display = gameMode === 'classic' ? 'none' : '';
+  setSiren(true);
+  updateHUD(0);
+}
+function gameOver() {
+  state = 'over';
+  setSiren(false);
+  overTitle.textContent = '🚓 BUSTED! 🚓';
+  beep(392, 0.16, 0, 0.06); beep(311, 0.16, 0.15, 0.06); beep(233, 0.34, 0.3, 0.06);
+  var score = currentScore();
+  var best = 0;
+  try {
+    best = parseInt(localStorage.getItem('driftCityChaseBest') || '0', 10) || 0;
+    if (score > best) { best = score; localStorage.setItem('driftCityChaseBest', String(best)); }
+  } catch (err) {}
+  var earned = Math.floor(timeAlive) + stars * 20;
+  credits += earned;
+  saveWallet();
+  buildUpg(); buildCopUpg(); refreshProgUI();
+  // GHOST: if this is your LONGEST escape ever, it becomes the new ghost!
+  var ghostLine = '';
+  var prevGhostTime = ghostRec ? ghostRec.time : 0;
+  var savedGhost = false;
+  if (timeAlive > prevGhostTime && runPath.length > 1) {
+    var recTime = Math.round((runPath.length - 1) * REC_DT * 10) / 10;
+    if (recTime > prevGhostTime) {
+      try {
+        localStorage.setItem(GHOST_KEY, JSON.stringify({ time: recTime, pts: runPath }));
+        ghostRec = { time: recTime, pts: runPath };
+        savedGhost = true;
+      } catch (err) {}
+    }
+  }
+  if (savedGhost) ghostLine = '👻 <b>New ghost saved!</b> Next Ghost Mode, you race THIS run.<br>';
+  else if (gameMode === 'ghost' && ghostRec) {
+    ghostLine = ghostBeaten
+      ? '🏆 <b>You beat your ghost!</b> Bonus banked: +' + ghostBonus + ' 💰<br>'
+      : '👻 Your ghost lasted <b>' + fmtTime(ghostRec.time) + '</b> — beat it next time!<br>';
+  }
+  if (rebirthedThisRun) {
+    ghostLine += '🔄 <b>You REBIRTHED during that run!</b> Total rebirths: <b>' + rebirths + '</b> — enemies are faster now!<br>';
+  } else if (gameMode === 'classic') {
+    ghostLine += '🎯 You reached <b>Level ' + level + '</b> — beat Level ' + FINAL_LEVEL + ' (' +
+      fmtTime(levelTarget(FINAL_LEVEL)) + ') to 🔄 REBIRTH!<br>';
+  }
+  refreshModeNotes();
+  finalStars.innerHTML = starString(stars);
+  finalStats.innerHTML = ghostLine +
+    '⭐ Wanted level: <b>' + stars + ' star' + (stars > 1 ? 's' : '') + '</b> &nbsp;•&nbsp; 🗺 Reached: <b>' + ZONES[curZone].label + '</b><br>' +
+    '⏱ Escaped for: <b>' + fmtTime(timeAlive) + '</b><br>' +
+    '🏁 Distance: <b>' + Math.floor(distancePx / 10) + ' m</b><br>' +
+    '💰 Credits earned: <b>+' + earned + '</b> &nbsp;(bank: <b>' + credits + '</b> — spend them in the garage!)<br>' +
+    '🏆 Score: <b>' + score + '</b> &nbsp;•&nbsp; Best: <b>' + best + '</b>';
+  gameOverScreen.style.display = 'flex';
+}
+function policeEnd(caught) {
+  state = 'over';
+  setSiren(false);
+  var bonus = 0;
+  if (caught) {
+    overTitle.textContent = '🎉 BUSTED — BY YOURSELF! 🎉';
+    beep(784, 0.12, 0, 0.06); beep(988, 0.12, 0.1, 0.06); beep(1319, 0.26, 0.2, 0.07);
+    bonus = 75 + 15 * stars;
+    credits += bonus;
+    saveWallet();
+  } else {
+    overTitle.textContent = '💨 THE ESCAPER GOT AWAY! 💨';
+    beep(392, 0.16, 0, 0.06); beep(311, 0.16, 0.15, 0.06); beep(233, 0.34, 0.3, 0.06);
+  }
+  buildUpg(); buildCopUpg(); refreshProgUI();
+  finalStars.innerHTML = starString(stars);
+  finalStats.innerHTML =
+    (caught
+      ? '🚓 <b>You caught your ghost</b> with <b>' + fmtTime(Math.max(0, (ghostRec ? ghostRec.time : 0) - timeAlive)) + '</b> to spare!<br>' +
+        '💰 Catch bonus: <b>+' + bonus + '</b> &nbsp;(bank: <b>' + credits + '</b>)<br>'
+      : '👻 The escaper was… <b>you</b>! It survived its whole best run of <b>' + fmtTime(ghostRec ? ghostRec.time : 0) + '</b>.<br>' +
+        '🎯 Fill the CATCH meter next time — pin it while it\'s slow in the corners!<br>') +
+    '⭐ Its wanted level reached: <b>' + stars + ' star' + (stars > 1 ? 's' : '') + '</b> &nbsp;•&nbsp; 🗺 Chase ended in: <b>' + ZONES[curZone].label + '</b><br>' +
+    '🏆 Best escaper AND best cop — that\'s the dream, officer. 🫡';
+  gameOverScreen.style.display = 'flex';
+}
+function refreshModeNotes() {
+  var gn = document.getElementById('ghostNote');
+  var pn = document.getElementById('policeNote');
+  if (ghostRec) {
+    gn.innerHTML = '👻 GHOST MODE: race the ghost of your best escape (<b>' + fmtTime(ghostRec.time) +
+      '</b>).<br>Survive longer than it did to win +' + GHOST_BONUS + ' bonus credits!';
+    pn.innerHTML = '🚓 POLICE MODE: YOU are the law! Catch the ghost of your best escape (<b>' +
+      fmtTime(ghostRec.time) + '</b>) before it gets away!';
+  } else {
+    gn.innerHTML = '👻 GHOST MODE: set a best run in <b>Classic Chase</b> first — then come back and race yourself!';
+    pn.innerHTML = '🚓 POLICE MODE: set a best run in <b>Classic Chase</b> first — then come back and hunt it down as the cop!';
+  }
+}
+refreshModeNotes();
+document.getElementById('startBtn').addEventListener('click', function () { startGame('classic'); });
+document.getElementById('restartBtn').addEventListener('click', function () { startGame(gameMode); });
+document.getElementById('ghostBtn').addEventListener('click', function () {
+  initAudio();
+  if (!ghostRec) {
+    var n1 = document.getElementById('ghostNote');
+    refreshModeNotes();
+    n1.classList.add('pulse');
+    setTimeout(function () { n1.classList.remove('pulse'); }, 450);
+    beep(220, 0.15, 0, 0.05);
+    return;
+  }
+  startGame('ghost');
+});
+document.getElementById('policeBtn').addEventListener('click', function () {
+  initAudio();
+  if (!ghostRec) {
+    var n2 = document.getElementById('policeNote');
+    refreshModeNotes();
+    n2.classList.add('pulse');
+    setTimeout(function () { n2.classList.remove('pulse'); }, 450);
+    beep(220, 0.15, 0, 0.05);
+    return;
+  }
+  startGame('police');
+});
+document.getElementById('tabEsc').addEventListener('click', function () {
+  document.getElementById('garage').style.display = '';
+  document.getElementById('copGarage').style.display = 'none';
+  this.classList.add('sel');
+  document.getElementById('tabCop').classList.remove('sel');
+  buildUpg();
+  beep(660, 0.06, 0, 0.04);
+});
+document.getElementById('tabCop').addEventListener('click', function () {
+  document.getElementById('garage').style.display = 'none';
+  document.getElementById('copGarage').style.display = '';
+  this.classList.add('sel');
+  document.getElementById('tabEsc').classList.remove('sel');
+  buildCopUpg();
+  beep(660, 0.06, 0, 0.04);
+});
+
+// ---------- Main loop ----------
+var lastT = performance.now();
+function frame(now) {
+  var dt = (now - lastT) / 1000;
+  lastT = now;
+  if (dt > 0.033) dt = 0.033;
+  if (dt < 0) dt = 0;
+  cycleT += dt; // day/night runs even on the menu backdrop
+  if (state === 'playing') {
+    if (gameMode === 'police') updatePolice(dt);
+    else update(dt);
+  }
+  draw();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
